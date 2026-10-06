@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
+import { DemoControl } from './components/DemoControl';
 import { dataSource } from './services/dataSource';
 import { nilmEngine } from './services/nilmEngine';
 import { anomalyDetector, AnomalyAlert } from './services/anomalyDetector';
@@ -37,7 +38,22 @@ export default function App() {
   const [historical, setHistorical] = useState<EnergyRecord[]>([]);
   const [chartData, setChartData] = useState<{ time: string; power: number }[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-  const [recordIndex, setRecordIndex] = useState(0);
+  const [accumulatedKwh, setAccumulatedKwh] = useState<number>(0);
+  const [isDemoView, setIsDemoView] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.hash === '#demo' || window.location.search.includes('demo');
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      setIsDemoView(window.location.hash === '#demo' || window.location.search.includes('demo'));
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
   const [tariff, setTariff] = useState(8.50);
   const controlsRef = useRef<DataSourceControls | null>(null);
   const [, setTick] = useState(0);
@@ -56,10 +72,16 @@ export default function App() {
       const processed = nilmEngine.processRecord(raw);
       setLiveRecord(processed);
 
+      // Accumulate energy accurately over time
+      const watts = processed.aggregatePowerWatts ?? 0;
+      if (typeof processed.energy === 'number' && processed.energy > 0) {
+        setAccumulatedKwh(processed.energy);
+      } else if (watts > 0) {
+        setAccumulatedKwh((prev) => prev + (watts * 2.0 / 3600000.0));
+      }
+
       anomalyDetector.processLiveRecord(processed);
       setAlerts([...anomalyDetector.getActiveAlerts()]);
-
-      setRecordIndex((p) => p + 1);
 
       setChartData((prev) => {
         const next = [
@@ -90,13 +112,25 @@ export default function App() {
   const activeAppliances = liveRecord?.appliances.filter((a) => (a.powerWatts ?? 0) > 0) ?? [];
   const totalWatts = liveRecord?.aggregatePowerWatts ?? 0;
   const estMonthlyCost = Math.round((totalWatts / 1000) * 24 * 30 * tariff);
-  const todayKwh = Number(((totalWatts / 1000) * (recordIndex * 6 / 3600)).toFixed(2));
-  const carbonKg = Number((todayKwh * 0.82).toFixed(2));
+
+  // Format cumulative energy with appropriate precision so it never looks frozen at 0
+  const formatKwh = (val: number) => {
+    if (val <= 0) return '0.000';
+    if (val < 0.01) return val.toFixed(4);
+    if (val < 1.0) return val.toFixed(3);
+    return val.toFixed(2);
+  };
+
+  const formattedKwh = formatKwh(accumulatedKwh);
+  const carbonKg = (accumulatedKwh * 0.82 >= 0.01)
+    ? (accumulatedKwh * 0.82).toFixed(3)
+    : (accumulatedKwh * 0.82).toFixed(4);
 
   const histAnalysis = historical.length > 0
     ? costCalculator.analyzeHistoricalCosts(historical)
     : null;
 
+  // Tabs shown on laptop dashboard — Demo Control is completely hidden from juries
   const tabs: { key: Tab; label: string }[] = [
     { key: 'dashboard',  label: t('nav.dashboard', 'Dashboard') },
     { key: 'appliances', label: t('nav.appliances', 'Appliances') },
@@ -106,6 +140,19 @@ export default function App() {
     { key: 'modelStatus',label: t('nav.modelStatus', 'AI Models') },
     { key: 'settings',   label: t('nav.settings', 'Settings') },
   ];
+
+  // Secret Mobile Remote View (when accessed via http://<IP>:5173/#demo)
+  if (isDemoView) {
+    return (
+      <div className="min-h-screen bg-brand-bg text-brand-text p-4 flex flex-col justify-center items-center relative overflow-hidden">
+        <div className="fixed top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-accent/20 rounded-full blur-[120px] pointer-events-none" />
+        <div className="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-brand-primary/10 rounded-full blur-[120px] pointer-events-none" />
+        <DemoControl />
+      </div>
+    );
+  }
+
+
 
   if (!liveRecord) {
     return (
@@ -124,7 +171,7 @@ export default function App() {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI icon={<Zap className="h-6 w-6 text-brand-primary" />} label={t('kpi.currentPower', 'Current Power')} value={`${totalWatts} W`} />
-        <KPI icon={<TrendingUp className="h-6 w-6 text-brand-accent" />} label={t('kpi.todayEnergy', "Today's Energy")} value={`${todayKwh} kWh`} />
+        <KPI icon={<TrendingUp className="h-6 w-6 text-brand-accent" />} label={t('kpi.todayEnergy', "Today's Energy")} value={`${formattedKwh} kWh`} />
         <KPI icon={<IndianRupee className="h-6 w-6 text-brand-success" />} label={t('kpi.estCost', 'Est. Monthly Cost')} value={`₹${estMonthlyCost.toLocaleString()}`} />
         <KPI icon={<Leaf className="h-6 w-6 text-emerald-500" />} label={t('kpi.carbonFootprint', 'Carbon Footprint')} value={`${carbonKg} kg`} />
       </div>

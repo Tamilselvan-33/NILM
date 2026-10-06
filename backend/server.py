@@ -13,10 +13,11 @@ from datetime import datetime
 
 app = FastAPI(title="EnergyGuard AI API")
 
-# Enable CORS for React frontend
+# Enable CORS for React frontend and mobile browser
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -24,6 +25,15 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, 'model.pkl')
 INFO_PATH = os.path.join(BASE_DIR, 'model_info.json')
+
+# In-memory variable for software demo state
+demo_state = {
+    "on": False
+}
+
+class DemoStateRequest(BaseModel):
+    on: bool
+
 
 # Load models (Random Forest + Isolation Forest ensemble)
 rf_model = None
@@ -268,6 +278,27 @@ def get_model_status():
             return json.load(f)
     return {"error": "Model info not found"}
 
+@app.post("/api/demo/state")
+async def set_demo_state(req: DemoStateRequest):
+    demo_state["on"] = req.on
+    return {
+        "status": "ok",
+        "demo": True,
+        "on": req.on,
+        "state": "ON" if req.on else "OFF"
+    }
+
+@app.get("/api/demo/state")
+def get_demo_state():
+    is_on = demo_state.get("on", False)
+    return {
+        "status": "ok",
+        "demo": True,
+        "on": is_on,
+        "state": "ON" if is_on else "OFF"
+    }
+
 if __name__ == '__main__':
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+
