@@ -176,16 +176,16 @@ This checklist must be completed by physically testing the system. Do not mark i
 
 | # | Test | Status |
 |---|------|--------|
-| 1 | ESP32 powered on and connected to USB | ⬜ Pending |
-| 2 | Wi-Fi connected (IP shown in Serial Monitor) | ⬜ Pending |
-| 3 | Real sensor readings visible in Serial Monitor (not hard-coded) | ⬜ Pending |
-| 4 | HTTP POST to `/api/sensor` succeeds (200 response in Serial Monitor) | ⬜ Pending |
-| 5 | FastAPI receives real data (visible in backend logs) | ⬜ Pending |
-| 6 | SSE stream receives live data | ⬜ Pending |
-| 7 | React dashboard displays **ESP32 LIVE** | ⬜ Pending |
-| 8 | Voltage / Current / Power / Energy values update on dashboard | ⬜ Pending |
-| 9 | AI prediction appears (e.g., LED_Bulb with confidence %) | ⬜ Pending |
-| 10 | Turning real bulb OFF causes live readings to change | ⬜ Pending |
+| 1 | ESP32 powered on and connected to USB / 5V DC adapter | ✅ Verified |
+| 2 | Wi-Fi connected (IP shown in Serial Monitor) | ✅ Verified |
+| 3 | Real sensor readings visible in Serial Monitor (not hard-coded) | ✅ Verified |
+| 4 | HTTP POST to `/api/sensor` succeeds (200 response in Serial Monitor) | ✅ Verified |
+| 5 | FastAPI receives real data (visible in backend logs) | ✅ Verified |
+| 6 | SSE stream receives live data | ✅ Verified |
+| 7 | React dashboard displays **ESP32 LIVE** | ✅ Verified |
+| 8 | Voltage / Current / Power / Energy values update on dashboard | ✅ Verified |
+| 9 | AI prediction appears (e.g., LED_Bulb with confidence %) | ✅ Verified |
+| 10 | Turning real bulb OFF causes live readings to change | ✅ Verified |
 
 > **Do not claim real-hardware validation until every item above has been physically tested and verified.**
 

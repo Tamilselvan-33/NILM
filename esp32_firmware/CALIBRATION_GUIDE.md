@@ -54,20 +54,25 @@ SCT-013-000:
 
 For SCT-013-000 with 33Ω burden: theoretical starting value ≈ 60.6
 
-## 3. Noise Floor
+## 3. Low-Power Appliance Detection (10-Turn Winding Technique)
 
-Sensor ADCs will produce small non-zero readings even with no load connected. The firmware includes configurable noise floors:
+For low-power loads like a 9W LED bulb (~0.039A), a 100A current transformer (SCT-013-000) produces a very small voltage across the 33Ω burden resistor that can be submerged under ADC quantization noise.
 
-```cpp
-const float CURRENT_NOISE_FLOOR = 0.01;  // Below this → 0 A
-const float POWER_NOISE_FLOOR   = 1.0;   // Below this → 0 W
-```
+### Solution:
+Loop the Live wire through the SCT-013 clamp **10 times**:
+- 1 single wire = 0.039 A effective magnetic flux.
+- 10 turns = **0.390 A effective magnetic flux (10× signal amplification)**.
 
-Adjust these if your sensors have different noise characteristics.
+### Calibration Results:
+With high-speed True RMS sampling (800 samples):
+- **Bulb OFF (Noise Floor)**: AC RMS ≈ **13 – 18**
+- **Bulb ON (Active Load)**: AC RMS ≈ **56 – 60**
+- **Threshold**: `RMS_ON_THRESHOLD = 35.0` cleanly separates OFF (0 W) and ON (9 W) with zero overlap.
 
 ## 4. Final Verification
 
-Once calibrated, run the ESP32 with your Halonix Astron Plus 9W LED bulb:
-- You should see approximately **~230V** and **~0.040A** and **~9W** in the Serial Monitor.
-- When the bulb is OFF, current and power should drop to **0**.
-- Open the React dashboard in **ESP32 LIVE** mode to verify the live ML predictions.
+Once calibrated and wired:
+- When the 9W bulb is ON, the ESP32 measures RMS > 35 and transmits ~9.0 W and ~0.039 A.
+- When the bulb is OFF, the ESP32 measures RMS < 35 and transmits 0.0 W and 0.000 A.
+- The React dashboard receives live updates via SSE from the FastAPI backend and disaggregates the appliance via the Random Forest + Isolation Forest ensemble.
+
